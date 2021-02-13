@@ -39,6 +39,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 将配置文件中的配置封装到 {@link ConfigurationManager} 中，
+ * 然后可以通过EurekaServerConfig中的各种getXxx()方法从 {@link ConfigurationManager}获取配置值。
+ *
+ * 装配过程在{@link #init()}方法中
+ *
+ * 通过 eureka.server.props 指定的文件名 拼接 .properteis 后缀，
+ * 然后在classpath下的路径加载配置文件到{@link EurekaServerConfig}中。 默认寻找 eureka-server.properties
+ *
+ * 如果指定了 eureka.environment 会再加载一次指定环境的配置。例如环境默认是test,
+ * 会在加载 eureka-server.properties 的基础上再加载一次 eureka-server-test.properties，相同的参数会覆盖掉之前的。
+ *
+ * 这里的 namespace 暂时没看懂什么用法。猜测应该是用来区分不同的配置类型的。
  *
  * A default implementation of eureka server configuration as required by
  * {@link EurekaServerConfig}.
@@ -101,16 +113,21 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
         init();
     }
 
+    /**
+     * 加载配置文件中的配置到ConfigurationManager中去
+     */
     private void init() {
+        // 设置环境 env
         String env = ConfigurationManager.getConfigInstance().getString(
                 EUREKA_ENVIRONMENT, TEST);
         ConfigurationManager.getConfigInstance().setProperty(
                 ARCHAIUS_DEPLOYMENT_ENVIRONMENT, env);
-
+        // 配置文件的名字，默认为 eureka-server
         String eurekaPropsFile = EUREKA_PROPS_FILE.get();
         try {
             // ConfigurationManager
             // .loadPropertiesFromResources(eurekaPropsFile);
+            // 执行加载过程，从eureka-server.properties中读取配置，再从eureka-server-${env}.properties中读取配置覆盖进去
             ConfigurationManager
                     .loadCascadedPropertiesFromResources(eurekaPropsFile);
         } catch (IOException e) {

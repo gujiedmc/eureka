@@ -24,6 +24,7 @@ import com.netflix.eureka.resources.ASGResource;
 import java.util.List;
 
 /**
+ * 支持集群同步的 注册表
  * @author Tomasz Bak
  */
 public interface PeerAwareInstanceRegistry extends InstanceRegistry {

@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * EurekaServer的 注册表。
+ * 用来维护注册的服务实例的生命周期以及查找服务实例。
+ *
  * @author Tomasz Bak
  */
 public interface InstanceRegistry extends LeaseManager<InstanceInfo>, LookupService<String> {

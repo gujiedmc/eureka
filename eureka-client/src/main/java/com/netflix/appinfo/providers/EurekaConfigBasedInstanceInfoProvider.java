@@ -17,6 +17,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 通过 EurekaInstanceConfig 实例构造InstanceInfo的Provider.
+ *
+ * 此提供程序是@Singleton范围，因为它同时为DiscoveryClient和ApplicationInfoManager提供InstanceInfo，
+ * 并且需要为它们提供相同的InstanceInfo。
+ *
  * InstanceInfo provider that constructs the InstanceInfo this this instance using
  * EurekaInstanceConfig.
  *
@@ -42,6 +47,9 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
         this.config = config;
     }
 
+    /**
+     * 构造过程
+     */
     @Override
     public synchronized InstanceInfo get() {
         if (instanceInfo == null) {
@@ -113,6 +121,7 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
             }
 
             // Add any user-specific metadata information
+            // EurekaClient 配置中的元数据配置到InstanceInfo中
             for (Map.Entry<String, String> mapEntry : config.getMetadataMap().entrySet()) {
                 String key = mapEntry.getKey();
                 String value = mapEntry.getValue();

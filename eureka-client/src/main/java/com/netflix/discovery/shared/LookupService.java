@@ -20,6 +20,7 @@ import java.util.List;
 import com.netflix.appinfo.InstanceInfo;
 
 /**
+ * 查找存活服务的实例
  * Lookup service for finding active instances.
  *
  * @author Karthik Ranganathan, Greg Kim.

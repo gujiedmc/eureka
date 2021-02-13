@@ -63,6 +63,9 @@ import javax.inject.Singleton;
 import static com.netflix.eureka.Names.METRIC_REGISTRY_PREFIX;
 
 /**
+ * 支持EurekaServer集群的 注册表 实现类。
+ * 用来维护注册的服务实例的生命周期以及查找服务实例。
+ *
  * Handles replication of all operations to {@link AbstractInstanceRegistry} to peer
  * <em>Eureka</em> nodes to keep them all in sync.
  *
