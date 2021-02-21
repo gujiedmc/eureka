@@ -412,6 +412,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             leaseDuration = info.getLeaseInfo().getDurationInSecs();
         }
         super.register(info, leaseDuration, isReplication);
+        // 同步到其它server
         replicateToPeers(Action.Register, info.getAppName(), info.getId(), info, null, isReplication);
     }
 

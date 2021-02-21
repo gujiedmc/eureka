@@ -15,6 +15,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
+ * 向server同步实例信息的task。在{@link #start(int)}方法中调用 {@link #run()}方法开始异步执行，默认延迟40秒钟。
+ *
  * A task for updating and replicating the local instanceinfo to the remote server. Properties of this task are:
  * - configured with a single update thread to guarantee sequential update to the remote server
  * - update tasks can be scheduled on-demand via onDemandUpdate()
@@ -60,6 +62,11 @@ class InstanceInfoReplicator implements Runnable {
         logger.info("InstanceInfoReplicator onDemand update allowed rate per min is {}", allowedRatePerMinute);
     }
 
+    /**
+     * 启动注册
+     *
+     * @param initialDelayMs
+     */
     public void start(int initialDelayMs) {
         if (started.compareAndSet(false, true)) {
             instanceInfo.setIsDirty();  // for initial register
@@ -114,10 +121,12 @@ class InstanceInfoReplicator implements Runnable {
 
     public void run() {
         try {
+            // 刷新实例信息
             discoveryClient.refreshInstanceInfo();
 
             Long dirtyTimestamp = instanceInfo.isDirtyWithTime();
             if (dirtyTimestamp != null) {
+                // 注册
                 discoveryClient.register();
                 instanceInfo.unsetIsDirty(dirtyTimestamp);
             }

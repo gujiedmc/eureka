@@ -24,6 +24,8 @@ import com.netflix.discovery.shared.transport.EurekaHttpClient;
 import com.netflix.discovery.shared.transport.EurekaHttpResponse;
 
 /**
+ * Eureka网络通信组件装饰器
+ *
  * @author Tomasz Bak
  */
 public abstract class EurekaHttpClientDecorator implements EurekaHttpClient {

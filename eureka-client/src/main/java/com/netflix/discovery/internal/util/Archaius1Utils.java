@@ -9,6 +9,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
+ * 从 ${configName}.properties和 ${configName}-${env}.properties
+ * 加载EurekaClient配置文件到 ConfigurationManager 中，
+ * 之后可以通过 DynamicPropertyFactory 来获取EurekaClient的配置
+ *
  * This is an INTERNAL class not for public use.
  *
  * @author David Liu
@@ -24,7 +28,7 @@ public final class Archaius1Utils {
 
         DynamicPropertyFactory configInstance = DynamicPropertyFactory.getInstance();
         DynamicStringProperty EUREKA_PROPS_FILE = configInstance.getStringProperty("eureka.client.props", configName);
-
+        // 环境
         String env = ConfigurationManager.getConfigInstance().getString(EUREKA_ENVIRONMENT, "test");
         ConfigurationManager.getConfigInstance().setProperty(ARCHAIUS_DEPLOYMENT_ENVIRONMENT, env);
 

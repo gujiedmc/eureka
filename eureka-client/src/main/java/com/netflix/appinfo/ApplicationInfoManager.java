@@ -28,7 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
+ * 服务实例信息管理器，用来初始化注册到EurekaServer以及被其它服务发现的信息。
  *
  * The class that initializes information required for registration with
  * <tt>Eureka Server</tt> and to be discovered by other components.
@@ -193,6 +193,7 @@ public class ApplicationInfoManager {
     }
 
     /**
+     *
      * Refetches the hostname to check if it has changed. If it has, the entire
      * <code>DataCenterInfo</code> is refetched and passed on to the eureka
      * server on next heartbeat.

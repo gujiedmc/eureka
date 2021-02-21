@@ -20,6 +20,9 @@ import java.util.Map;
 import com.google.inject.ImplementedBy;
 
 /**
+ * Eureka实例注册到EurekaServer上需要的配置信息。
+ * 主要用来配置一些实例服务信息。
+ *
  * Configuration information required by the instance to register with Eureka
  * server. Once registered, users can look up information from
  * {@link com.netflix.discovery.EurekaClient} based on virtual hostname (also called VIPAddress),

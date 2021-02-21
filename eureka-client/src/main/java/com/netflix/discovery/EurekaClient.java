@@ -14,6 +14,8 @@ import com.netflix.discovery.shared.Applications;
 import com.netflix.discovery.shared.LookupService;
 
 /**
+ * EurekaClient用来和EurekaServer进行交互的工具。
+ *
  * Define a simple interface over the current DiscoveryClient implementation.
  *
  * This interface does NOT try to clean up the current client interface for eureka 1.x. Rather it tries

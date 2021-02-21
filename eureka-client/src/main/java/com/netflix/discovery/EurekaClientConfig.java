@@ -24,6 +24,9 @@ import com.google.inject.ImplementedBy;
 import com.netflix.discovery.shared.transport.EurekaTransportConfig;
 
 /**
+ * EurekaClient注册到EurekaServer成为一个实例需要的配置信息。
+ * 主要用来指定Client的一些相关信息。
+ *
  * Configuration information required by the eureka clients to register an
  * instance with <em>Eureka</em> server.
  *
@@ -271,6 +274,9 @@ public interface EurekaClientConfig {
     boolean shouldUseDnsForFetchingServiceUrls();
 
     /**
+     * 标识当前实例是否需要注册到server上被其它服务发现。
+     * 有些情况是服务只请求其它服务，而不提供接口给其它服务使用
+     *
      * Indicates whether or not this instance should register its information
      * with eureka server for discovery by others.
      *
@@ -450,6 +456,8 @@ public interface EurekaClientConfig {
     int getEurekaConnectionIdleTimeoutSeconds();
 
     /**
+     * 是否拉去server的注册表信息到本地
+     *
      * Indicates whether this client should fetch eureka registry information from eureka server.
      *
      * @return {@code true} if registry information has to be fetched, {@code false} otherwise.

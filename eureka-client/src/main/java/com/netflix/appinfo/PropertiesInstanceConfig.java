@@ -28,6 +28,8 @@ import org.apache.commons.configuration.Configuration;
 import static com.netflix.appinfo.PropertyBasedInstanceConfigConstants.*;
 
 /**
+ * 通过netflix家族的config组件 DynamicPropertyFactory 来支持从 eureka-client 位置加载 Properties文件。
+ *
  * A properties based {@link InstanceInfo} configuration.
  *
  * <p>

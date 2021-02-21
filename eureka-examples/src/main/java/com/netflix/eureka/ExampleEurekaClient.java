@@ -35,6 +35,8 @@ import com.netflix.discovery.EurekaClient;
 import com.netflix.discovery.EurekaClientConfig;
 
 /**
+ * Eureka Client 使用示例。
+ *
  * Sample Eureka client that discovers the example service using Eureka and sends requests.
  *
  * In this example, the program tries to get the example from the EurekaClient, and then
@@ -114,7 +116,7 @@ public class ExampleEurekaClient {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main2(String[] args) {
         ExampleEurekaClient sampleClient = new ExampleEurekaClient();
 
         // create the client
@@ -127,6 +129,25 @@ public class ExampleEurekaClient {
 
         // shutdown the client
         eurekaClient.shutdown();
+    }
+
+    public static void main(String[] args) {
+
+        // 1. 从 eureka-config.properties 位置加载 EurekaClient配置，可以从 EurekaInstanceConfig 获取配置值
+        EurekaInstanceConfig instanceConfig = new MyDataCenterInstanceConfig();
+        // 2. 创建 服务实例信息
+        InstanceInfo instanceInfo = new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get();
+        // 3. 创建 服务实例信息管理器
+        ApplicationInfoManager applicationInfoManager = new ApplicationInfoManager(instanceConfig, instanceInfo);
+        // 4. 从 eureka-client.properties 位置加载 Client信息
+        DefaultEurekaClientConfig eurekaClientConfig = new DefaultEurekaClientConfig();
+        // 5. 通过 实例信息 和 Client信息 创建 EurekaClient
+        EurekaClient client = new DiscoveryClient(applicationInfoManager, eurekaClientConfig);
+        // 注册 com.netflix.discovery.DiscoveryClient.register
+        // 心跳
+        // 执行请求
+        // 取消注册
+        client.shutdown();
     }
 
 }

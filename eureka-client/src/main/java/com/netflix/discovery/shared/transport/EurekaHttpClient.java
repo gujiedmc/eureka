@@ -6,6 +6,8 @@ import com.netflix.discovery.shared.Application;
 import com.netflix.discovery.shared.Applications;
 
 /**
+ * EurekaClient 和 EurekaServer 交互的http请求封装
+ *
  * Low level Eureka HTTP client API.
  *
  * @author Tomasz Bak
