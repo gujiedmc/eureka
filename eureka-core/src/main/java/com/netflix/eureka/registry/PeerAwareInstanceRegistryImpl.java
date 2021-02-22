@@ -626,6 +626,8 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     }
 
     /**
+     * 将实例变更信息同步到其它Eureka Server节点
+     *
      * Replicates all eureka actions to peer eureka nodes except for replication
      * traffic to this node.
      *
@@ -644,10 +646,12 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             }
 
             for (final PeerEurekaNode node : peerEurekaNodes.getPeerEurekaNodes()) {
+                // 排除当前节点
                 // If the url represents this host, do not replicate to yourself.
                 if (peerEurekaNodes.isThisMyUrl(node.getServiceUrl())) {
                     continue;
                 }
+                // 执行同步
                 replicateInstanceActionsToPeers(action, appName, id, info, newStatus, node);
             }
         } finally {
@@ -656,6 +660,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     }
 
     /**
+     * 执行rest请求，将实例变更信息同步到其它server节点。
      * Replicates all instance changes to peer eureka nodes except for
      * replication traffic to this node.
      *

@@ -74,6 +74,8 @@ public class Lease<T> {
     }
 
     /**
+     * 标记服务up时间，只有首次调用的时候生效
+     *
      * Mark the service as up. This will only take affect the first time called,
      * subsequent calls will be ignored.
      */

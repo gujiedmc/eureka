@@ -33,6 +33,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * EurekaServer节点代理，代理了远程server节点对实例的管理功能。
+ * 可以将当前节点上实例的变更通过该代理同步到远程server节点。
+ *
  * The <code>PeerEurekaNode</code> represents a peer node to which information
  * should be shared from this node.
  *
@@ -123,6 +126,8 @@ public class PeerEurekaNode {
     }
 
     /**
+     * 同步实例注册动作到其它节点
+     *
      * Sends the registration information of {@link InstanceInfo} receiving by
      * this node to the peer node represented by this class.
      *

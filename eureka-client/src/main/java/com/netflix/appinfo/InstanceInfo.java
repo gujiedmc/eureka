@@ -315,12 +315,18 @@ public class InstanceInfo {
         this.version = ii.version;
     }
 
-
+    /**
+     * 实例状态枚举
+     */
     public enum InstanceStatus {
+        // 服务已经启动，可以接受请求
         UP, // Ready to receive traffic
+        // 服务已经宕掉，不可以接受请求
         DOWN, // Do not send traffic- healthcheck callback failed
+        // 服务正在初始化，不可以接受请求
         STARTING, // Just about starting- initializations to be done - do not
         // send traffic
+        // 标记不接受请求
         OUT_OF_SERVICE, // Intentionally shutdown for traffic
         UNKNOWN;
 
