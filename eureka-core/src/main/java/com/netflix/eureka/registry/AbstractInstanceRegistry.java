@@ -601,6 +601,11 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         evict(0l);
     }
 
+    /**
+     * 摘除已经过期的服务实例
+     *
+     * @param additionalLeaseMs server端补偿时间
+     */
     public void evict(long additionalLeaseMs) {
         logger.debug("Running the evict task");
 
@@ -1270,6 +1275,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         }
 
         /**
+         * 计算补偿时间。
+         *
          * compute a compensation time defined as the actual time this task was executed since the prev iteration,
          * vs the configured amount of time for execution. This is useful for cases where changes in time (due to
          * clock skew or gc for example) causes the actual eviction task to execute later than the desired time

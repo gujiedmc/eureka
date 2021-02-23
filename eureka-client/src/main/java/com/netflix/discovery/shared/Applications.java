@@ -47,6 +47,9 @@ import com.thoughtworks.xstream.annotations.XStreamAlias;
 import com.thoughtworks.xstream.annotations.XStreamImplicit;
 
 /**
+ * client端封装server端注册表信息的类。
+ *
+ *
  * The class that wraps all the registry information returned by eureka server.
  *
  * <p>
@@ -283,6 +286,7 @@ public class Applications {
     }
 
     /**
+     * 实例相信过滤、重组，然后存放到本地缓存中。
      * Shuffles a whole region so that the instances will not always be returned
      * in the same order.
      * 

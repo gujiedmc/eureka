@@ -58,7 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 注册表查询缓存
+ * 注册表查询缓存实现
  *
  * The class that is responsible for caching registry information that will be
  * queried by the clients.

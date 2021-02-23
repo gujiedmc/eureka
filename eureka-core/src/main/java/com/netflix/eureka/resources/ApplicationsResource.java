@@ -99,6 +99,8 @@ public class ApplicationsResource {
     }
 
     /**
+     * 查询所有的实例信息
+     *
      * Get information about all {@link com.netflix.discovery.shared.Applications}.
      *
      * @param version the version of the request.
