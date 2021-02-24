@@ -62,7 +62,18 @@ import org.slf4j.LoggerFactory;
 import static com.netflix.eureka.util.EurekaMonitors.*;
 
 /**
+ * 注册表主要逻辑实现。
+ * 1. 注册表创建 {@link #AbstractInstanceRegistry}
+ * 2. 实例注册 {@link #register}
+ * 3. 实例续约 {@link #renew}
+ * 4. 实例取消注册 {@link #cancel}
+ * 5. 故障实例摘除 {@link #evict(long)}
+ * 6. 清空注册表 {@link #clearRegistry()}
+ * 7. 查询应用实例，包括全量查询、增量查询、单独查询等等。 {@link #getApplication*}
+ * 8.
  *
+ * 后台定时任务
+ * 1. {@link #evictionTaskRef}
  *
  * Handles all registry requests from eureka clients.
  *
@@ -95,6 +106,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     private final CircularQueue<Pair<Long, String>> recentCanceledQueue;
     private ConcurrentLinkedQueue<RecentlyChangedItem> recentlyChangedQueue = new ConcurrentLinkedQueue<RecentlyChangedItem>();
 
+    // 读写锁
     private final ReentrantReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     private final Lock read = readWriteLock.readLock();
     private final Lock write = readWriteLock.writeLock();
@@ -116,6 +128,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     protected volatile ResponseCache responseCache;
 
     /**
+     * 新建注册表
+     *
      * Create a new, empty instance registry.
      */
     protected AbstractInstanceRegistry(EurekaServerConfig serverConfig, EurekaClientConfig clientConfig, ServerCodecs serverCodecs) {
@@ -125,8 +139,10 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         this.recentCanceledQueue = new CircularQueue<Pair<Long, String>>(1000);
         this.recentRegisteredQueue = new CircularQueue<Pair<Long, String>>(1000);
 
+        // 心跳计数
         this.renewsLastMin = new MeasuredRate(1000 * 60 * 1);
 
+        // 创建定时清理 delta 队列的task
         this.deltaRetentionTimer.schedule(getDeltaRetentionTask(),
                 serverConfig.getDeltaRetentionTimerIntervalInMs(),
                 serverConfig.getDeltaRetentionTimerIntervalInMs());
@@ -362,6 +378,9 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
+     * 心跳续约。
+     * 将实例的最后更新时间设置为当前时间。
+     *
      * Marks the given instance of the given app name as renewed, and also marks whether it originated from
      * replication.
      *
@@ -401,6 +420,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 }
             }
             renewsLastMin.increment();
+            // 更新实例的 lastUpdateTimestamp
             leaseToRenew.renew();
             return true;
         }
@@ -605,7 +625,11 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
-     * 摘除已经过期的服务实例
+     * 摘除已经过期的服务实例。
+     * 需要注意的点：
+     * 1. 实例过期计算以及补偿时间
+     * 2. 最大实例摘除数量
+     * 3. 随机摘除
      *
      * @param additionalLeaseMs server端补偿时间
      */
@@ -620,6 +644,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         // We collect first all expired items, to evict them in random order. For large eviction sets,
         // if we do not that, we might wipe out whole apps before self preservation kicks in. By randomizing it,
         // the impact should be evenly distributed across all applications.
+        // 不会全部一次性摘除，而是随机分布摘除，以降低影响。
+        // 遍历注册表中的所有实例，将所有故障的实例放入到 expiredLeases 中
         List<Lease<InstanceInfo>> expiredLeases = new ArrayList<>();
         for (Entry<String, Map<String, Lease<InstanceInfo>>> groupEntry : registry.entrySet()) {
             Map<String, Lease<InstanceInfo>> leaseMap = groupEntry.getValue();
@@ -633,12 +659,14 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             }
         }
 
+        // 计算摘除实例的数量。 摘除实例数量 = Min(故障实例数量，(注册表实例数量-注册表实例数量*比例配置))
         // To compensate for GC pauses or drifting local time, we need to use current registry size as a base for
         // triggering self-preservation. Without that we would wipe out full registry.
         int registrySize = (int) getLocalRegistrySize();
         int registrySizeThreshold = (int) (registrySize * serverConfig.getRenewalPercentThreshold());
         int evictionLimit = registrySize - registrySizeThreshold;
 
+        // 随机摘除。从这些故障实例中随机抽取指定数量的实例摘除
         int toEvict = Math.min(expiredLeases.size(), evictionLimit);
         if (toEvict > 0) {
             logger.info("Evicting {} items (expired={}, evictionLimit={})", toEvict, expiredLeases.size(), evictionLimit);
@@ -646,6 +674,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             Random random = new Random(System.currentTimeMillis());
             for (int i = 0; i < toEvict; i++) {
                 // Pick a random item (Knuth shuffle algorithm)
+                // 每次从故障实例list中随机抽一个摘除。
                 int next = i + random.nextInt(expiredLeases.size() - i);
                 Collections.swap(expiredLeases, i, next);
                 Lease<InstanceInfo> lease = expiredLeases.get(i);
@@ -1237,11 +1266,16 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         }
     }
 
+    /**
+     * 服务启动
+     */
     protected void postInit() {
+        // 计数器启动
         renewsLastMin.start();
         if (evictionTaskRef.get() != null) {
             evictionTaskRef.get().cancel();
         }
+        // 故障实例摘除定时task启动
         evictionTaskRef.set(new EvictionTask());
         evictionTimer.schedule(evictionTaskRef.get(),
                 serverConfig.getEvictionIntervalTimerInMs(),
@@ -1264,6 +1298,9 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         return overriddenInstanceStatusMap.size();
     }
 
+    /**
+     * 故障摘除定时任务task
+     */
     /* visible for testing */ class EvictionTask extends TimerTask {
 
         private final AtomicLong lastExecutionNanosRef = new AtomicLong(0l);
@@ -1281,6 +1318,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
         /**
          * 计算补偿时间。
+         * 排除Server端异常停顿导致Client的续约时间没有正常更新，所以需要将服务器异常停顿的时间计算进去。
+         * 补偿时间  = 本次执行时间 - 上次执行 - 定时任务时间执行间隔时间，小于0时计0。
          *
          * compute a compensation time defined as the actual time this task was executed since the prev iteration,
          * vs the configured amount of time for execution. This is useful for cases where changes in time (due to

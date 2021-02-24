@@ -16,6 +16,7 @@
 
 package com.netflix.eureka.lease;
 
+import com.netflix.appinfo.PropertiesInstanceConfig;
 import com.netflix.eureka.registry.AbstractInstanceRegistry;
 
 /**
@@ -55,6 +56,9 @@ public class Lease<T> {
     }
 
     /**
+     * 将实例的心跳时间改为当前时间。
+     * 这里有个bug，多加了一个 {@link #duration} 然后在故障实例检查的地方 {@link #isExpired(long)} 又加了一次。
+     *
      * Renew the lease, use renewal duration if it was specified by the
      * associated {@link T} during registration, otherwise default duration is
      * {@link #DEFAULT_DURATION_IN_SECS}.
@@ -100,6 +104,14 @@ public class Lease<T> {
     }
 
     /**
+     * 计算心跳时间不是已经过期。
+     * 根据实例每次续约时 {@link #renew()} 更新的心跳时间，用户设置的心跳时间和Server端的服务补偿时间计算当前是否已经超时。
+     * 这里有个bug，最后一次心跳时间再更新的时候已经加了一次 心跳时间duration，这里又加了一次。
+     * 开发人员发现之后认为已经大规模上线，修改可能会影响线上业务，所以不做修改。
+     * 所以用户设置 {@link PropertiesInstanceConfig#getLeaseExpirationDurationInSeconds()} 的时候需要注意会乘以2.
+     *
+     * 当前时间 > （ 最后一次心跳时间lastUpdateTimestamp + 心跳失效时间duration + Server补偿时间additionalLeaseMs ）
+     *
      * Checks if the lease of a given {@link com.netflix.appinfo.InstanceInfo} has expired or not.
      *
      * Note that due to renew() doing the 'wrong" thing and setting lastUpdateTimestamp to +duration more than
@@ -107,7 +119,7 @@ public class Lease<T> {
      * instances that ungracefully shutdown. Due to possible wide ranging impact to existing usage, this will
      * not be fixed.
      *
-     * @param additionalLeaseMs any additional lease time to add to the lease evaluation in ms.
+     * @param additionalLeaseMs any additional lease time to add to the lease evaluation in ms. Server补偿时间
      */
     public boolean isExpired(long additionalLeaseMs) {
         return (evictionTimestamp > 0 || System.currentTimeMillis() > (lastUpdateTimestamp + duration + additionalLeaseMs));
