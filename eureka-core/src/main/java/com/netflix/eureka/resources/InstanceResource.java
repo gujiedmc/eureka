@@ -88,6 +88,8 @@ public class InstanceResource {
     }
 
     /**
+     * Client实例续约心跳接口，更新实例的状态和心跳续约时间
+     *
      * A put request for renewing lease from a client instance.
      *
      * @param isReplication

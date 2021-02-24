@@ -89,6 +89,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             .expireAfterAccess(1, TimeUnit.HOURS)
             .<String, InstanceStatus>build().asMap();
 
+    // 最近修改过的实例队列
     // CircularQueues here for debugging/statistics purposes only
     private final CircularQueue<Pair<Long, String>> recentRegisteredQueue;
     private final CircularQueue<Pair<Long, String>> recentCanceledQueue;
@@ -464,6 +465,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
+     * 状态更新
+     *
      * Updates the status of an instance. Normally happens to put an instance
      * between {@link InstanceStatus#OUT_OF_SERVICE} and
      * {@link InstanceStatus#UP} to put the instance in and out of traffic.
@@ -944,6 +947,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
+     * 查询增量实例信息
+     *
      * Gets the application delta also including instances from the passed remote regions, with the instances from the
      * local region. <br/>
      *

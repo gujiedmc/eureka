@@ -204,6 +204,11 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
         }
     }
 
+    /**
+     * 查询全量注册表。{@link com.netflix.eureka.resources.ApplicationsResource#getContainers}
+     * @param regions 区域
+     * @return
+     */
     @Override
     public EurekaHttpResponse<Applications> getApplications(String... regions) {
         return getApplicationsInternal("apps/", regions);

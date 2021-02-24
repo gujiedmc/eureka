@@ -58,7 +58,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 注册表查询缓存实现
+ * 注册表查询缓存实现。
+ * 主要是通过 {@link #readOnlyCacheMap} 和 {@link #readWriteCacheMap} 实现两级缓存。
+ * 先从 readOnlyCacheMap 中查询，如果没查到从 readWriteCacheMap 中查询，如果没查到再从注册表
+ *
+ * readOnlyCacheMap缓存过期 {@link #getCacheUpdateTask()}
+ *
  *
  * The class that is responsible for caching registry information that will be
  * queried by the clients.
@@ -114,10 +119,13 @@ public class ResponseCacheImpl implements ResponseCache {
                 }
             });
 
+    // 一级缓存，通过ConcurrentHashMap实现的只读缓存
     private final ConcurrentMap<Key, Value> readOnlyCacheMap = new ConcurrentHashMap<Key, Value>();
 
+    // 二级缓存，通过guava实现的二级缓存
     private final LoadingCache<Key, Value> readWriteCacheMap;
     private final boolean shouldUseReadOnlyResponseCache;
+    // 注册表
     private final AbstractInstanceRegistry registry;
     private final EurekaServerConfig serverConfig;
     private final ServerCodecs serverCodecs;
@@ -129,9 +137,12 @@ public class ResponseCacheImpl implements ResponseCache {
         this.registry = registry;
 
         long responseCacheUpdateIntervalMs = serverConfig.getResponseCacheUpdateIntervalMs();
+        // 二级缓存
         this.readWriteCacheMap =
                 CacheBuilder.newBuilder().initialCapacity(serverConfig.getInitialCapacityOfResponseCache())
+                        // 设置过期时间
                         .expireAfterWrite(serverConfig.getResponseCacheAutoExpirationInSeconds(), TimeUnit.SECONDS)
+                        // 删除监听
                         .removalListener(new RemovalListener<Key, Value>() {
                             @Override
                             public void onRemoval(RemovalNotification<Key, Value> notification) {
@@ -142,6 +153,7 @@ public class ResponseCacheImpl implements ResponseCache {
                                 }
                             }
                         })
+                        // 从注册表中查询数据生成缓存
                         .build(new CacheLoader<Key, Value>() {
                             @Override
                             public Value load(Key key) throws Exception {
@@ -154,6 +166,7 @@ public class ResponseCacheImpl implements ResponseCache {
                             }
                         });
 
+        // 定时刷新 readOnlyCacheMap
         if (shouldUseReadOnlyResponseCache) {
             timer.schedule(getCacheUpdateTask(),
                     new Date(((System.currentTimeMillis() / responseCacheUpdateIntervalMs) * responseCacheUpdateIntervalMs)
@@ -161,6 +174,7 @@ public class ResponseCacheImpl implements ResponseCache {
                     responseCacheUpdateIntervalMs);
         }
 
+        // 监控
         try {
             Monitors.registerObject(this);
         } catch (Throwable e) {
@@ -168,6 +182,12 @@ public class ResponseCacheImpl implements ResponseCache {
         }
     }
 
+    /**
+     * 将readWriteCacheMap的缓存数据同步到readOnlyCacheMap。
+     * 这里是直接遍历的readOnlyCacheMap，比较readWriteCacheMap的值，如果不同就更新。
+     * 只更新已经查询过的值
+     * @return
+     */
     private TimerTask getCacheUpdateTask() {
         return new TimerTask() {
             @Override
@@ -245,6 +265,8 @@ public class ResponseCacheImpl implements ResponseCache {
     }
 
     /**
+     * 使指定应用的缓存以及全量和增量缓存失效。
+     *
      * Invalidate the cache of a particular application.
      *
      * @param appName the application name of the application.
@@ -407,7 +429,8 @@ public class ResponseCacheImpl implements ResponseCache {
     }
 
     /*
-     * Generate pay load for the given key.
+     *  从注册表中查询数据生成缓存
+     *  Generate pay load for the given key.
      */
     private Value generatePayload(Key key) {
         Stopwatch tracer = null;

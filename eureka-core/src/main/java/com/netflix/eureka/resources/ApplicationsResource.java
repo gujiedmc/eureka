@@ -99,7 +99,7 @@ public class ApplicationsResource {
     }
 
     /**
-     * 查询所有的实例信息
+     * 查询全量注册表
      *
      * Get information about all {@link com.netflix.discovery.shared.Applications}.
      *
@@ -123,6 +123,7 @@ public class ApplicationsResource {
                                   @Context UriInfo uriInfo,
                                   @Nullable @QueryParam("regions") String regionsStr) {
 
+        // 监控数据更新
         boolean isRemoteRegionRequested = null != regionsStr && !regionsStr.isEmpty();
         String[] regions = null;
         if (!isRemoteRegionRequested) {
@@ -133,6 +134,7 @@ public class ApplicationsResource {
             EurekaMonitors.GET_ALL_WITH_REMOTE_REGIONS.increment();
         }
 
+        // 检查服务器是否允许访问注册表。如果服务器由于各种原因尚未准备好服务流量，则可以限制访问。
         // Check if the server allows the access to the registry. The server can
         // restrict access if it is not
         // ready to serve traffic depending on various reasons.
@@ -147,6 +149,7 @@ public class ApplicationsResource {
             returnMediaType = MediaType.APPLICATION_XML;
         }
 
+        // 从缓存中读取全量注册表数据
         Key cacheKey = new Key(Key.EntityType.Application,
                 ResponseCacheImpl.ALL_APPS,
                 keyType, CurrentRequestVersion.get(), EurekaAccept.fromString(eurekaAccept), regions
@@ -167,6 +170,8 @@ public class ApplicationsResource {
     }
 
     /**
+     * 注册表增量信息获取。
+     *
      * Get information about all delta changes in {@link com.netflix.discovery.shared.Applications}.
      *
      * <p>
@@ -220,6 +225,7 @@ public class ApplicationsResource {
             EurekaMonitors.GET_ALL_DELTA_WITH_REMOTE_REGIONS.increment();
         }
 
+        // 从缓存中读取增量数据
         CurrentRequestVersion.set(Version.toEnum(version));
         KeyType keyType = Key.KeyType.JSON;
         String returnMediaType = MediaType.APPLICATION_JSON;

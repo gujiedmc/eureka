@@ -96,10 +96,10 @@ import com.netflix.servo.monitor.Stopwatch;
  *
  * EurekaClient 大致有以下功能：
  *
- * a. 注册服务 {@link #register()}
- * b. 服务续约 {@link #renew()}
- * c. 停机 {@link #shutdown()}
- * d. 同步server注册的服务列表到本地 {@link #fetchRegistry} 和 {@link #refreshRegistry()}
+ * 1. 注册服务 {@link #register()}
+ * 2. 服务续约 {@link #renew()}
+ * 3. 停机 {@link #shutdown()}
+ * 4. 同步server注册的服务列表到本地 {@link #fetchRegistry} 和 {@link #refreshRegistry()}
  *
  *
  *
