@@ -69,6 +69,8 @@ public class Lease<T> {
     }
 
     /**
+     * 更新实例退出注册时间
+     *
      * Cancels the lease by updating the eviction time.
      */
     public void cancel() {

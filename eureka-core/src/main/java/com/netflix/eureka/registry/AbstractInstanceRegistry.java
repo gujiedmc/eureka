@@ -70,7 +70,7 @@ import static com.netflix.eureka.util.EurekaMonitors.*;
  * 5. 故障实例摘除 {@link #evict(long)}
  * 6. 清空注册表 {@link #clearRegistry()}
  * 7. 查询应用实例，包括全量查询、增量查询、单独查询等等。 {@link #getApplication*}
- * 8.
+ * 8. 自我保护机制
  *
  * 后台定时任务
  * 1. {@link #evictionTaskRef}
@@ -306,6 +306,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
+     * 取消注册
      * Cancels the registration of an instance.
      *
      * <p>
@@ -325,6 +326,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
+     * 实例取消注册
+     *
      * {@link #cancel(String, String, boolean)} method is overridden by {@link PeerAwareInstanceRegistry}, so each
      * cancel request is replicated to the peers. This is however not desired for expires which would be counted
      * in the remote peers as valid cancellations, so self preservation mode would not kick-in.
@@ -336,9 +339,12 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             Map<String, Lease<InstanceInfo>> gMap = registry.get(appName);
             Lease<InstanceInfo> leaseToCancel = null;
             if (gMap != null) {
+                // 注册表删除实例信息
                 leaseToCancel = gMap.remove(id);
             }
+            // 添加到最近取消注册队列
             recentCanceledQueue.add(new Pair<Long, String>(System.currentTimeMillis(), appName + "(" + id + ")"));
+            //
             InstanceStatus instanceStatus = overriddenInstanceStatusMap.remove(id);
             if (instanceStatus != null) {
                 logger.debug("Removed instance id {} from the overridden map which has value {}", id, instanceStatus.name());
@@ -348,17 +354,20 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 logger.warn("DS: Registry: cancel failed because Lease is not registered for: {}/{}", appName, id);
                 return false;
             } else {
+                // 更新实例退出注册时间
                 leaseToCancel.cancel();
                 InstanceInfo instanceInfo = leaseToCancel.getHolder();
                 String vip = null;
                 String svip = null;
                 if (instanceInfo != null) {
                     instanceInfo.setActionType(ActionType.DELETED);
+                    // 添加到增量队列
                     recentlyChangedQueue.add(new RecentlyChangedItem(leaseToCancel));
                     instanceInfo.setLastUpdatedTimestamp();
                     vip = instanceInfo.getVIPAddress();
                     svip = instanceInfo.getSecureVipAddress();
                 }
+                // 缓存无效
                 invalidateCache(appName, vip, svip);
                 logger.info("Cancelled instance {}/{} (replication={})", appName, id, isReplication);
             }
@@ -366,6 +375,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             read.unlock();
         }
 
+        // 重新计算server端每分钟应该受到的心跳数量
         synchronized (lock) {
             if (this.expectedNumberOfClientsSendingRenews > 0) {
                 // Since the client wants to cancel it, reduce the number of clients to send renews.
