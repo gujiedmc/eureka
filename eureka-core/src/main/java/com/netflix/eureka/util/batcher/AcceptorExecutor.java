@@ -28,6 +28,15 @@ import org.slf4j.LoggerFactory;
 import static com.netflix.eureka.Names.METRIC_REPLICATION_PREFIX;
 
 /**
+ *
+ * task队列执行器。
+ *
+ * 1. 首先通过 {@link #process}方法将task存入到 {@link #acceptorQueue}中
+ * 2. 然后通过{@link AcceptorRunner#drainAcceptorQueue()} 方法一次性将 {@link #acceptorQueue} 队列中全部task遍历取出放入到 {@link #processingOrder} **队尾**
+ * 或者通过{@link AcceptorRunner#drainReprocessQueue()} 方法一次性将 {@link #reprocessQueue} 队列中全部重试task遍历取出放入到 {@link #processingOrder} **队首**
+ * 3. 通过 {@link AcceptorRunner#assignSingleItemWork()} 从 {@link #processingOrder} 队列中取出一个task 放入到 {@link #singleItemWorkQueue} 队列中
+ * 或者通过{@link AcceptorRunner#assignBatchWork()} 从 {@link #processingOrder} 队列中批量取出task 放入到 {@link #batchWorkQueue}队列中
+ *
  * An active object with an internal thread accepting tasks from clients, and dispatching them to
  * workers in a pull based manner. Workers explicitly request an item or a batch of items whenever they are
  * available. This guarantees that data to be processed are always up to date, and no stale data processing is done.
@@ -48,22 +57,31 @@ class AcceptorExecutor<ID, T> {
     private static final Logger logger = LoggerFactory.getLogger(AcceptorExecutor.class);
 
     private final String id;
+    // processingOrder 最大数量
     private final int maxBufferSize;
+    // batchWorkQueue 最大数量
     private final int maxBatchingSize;
+    // batchWorkRequests 最大延迟
     private final long maxBatchingDelay;
 
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
 
+    // 存储task的队列 先进先出
     private final BlockingQueue<TaskHolder<ID, T>> acceptorQueue = new LinkedBlockingQueue<>();
+    // 重试task的队列 先进先出
     private final BlockingDeque<TaskHolder<ID, T>> reprocessQueue = new LinkedBlockingDeque<>();
     private final Thread acceptorThread;
 
+    // 等待执行的task map
     private final Map<ID, TaskHolder<ID, T>> pendingTasks = new HashMap<>();
+    // 等待执行的task的ID队列 双端队列，
     private final Deque<ID> processingOrder = new LinkedList<>();
 
+    // 单条执行队列
     private final Semaphore singleItemWorkRequests = new Semaphore(0);
     private final BlockingQueue<TaskHolder<ID, T>> singleItemWorkQueue = new LinkedBlockingQueue<>();
 
+    // 批量执行队列
     private final Semaphore batchWorkRequests = new Semaphore(0);
     private final BlockingQueue<List<TaskHolder<ID, T>>> batchWorkQueue = new LinkedBlockingQueue<>();
 
@@ -180,6 +198,9 @@ class AcceptorExecutor<ID, T> {
         return singleItemWorkQueue.size() + batchWorkQueue.size();
     }
 
+    /**
+     *
+     */
     class AcceptorRunner implements Runnable {
         @Override
         public void run() {
@@ -217,6 +238,11 @@ class AcceptorExecutor<ID, T> {
             return pendingTasks.size() >= maxBufferSize;
         }
 
+        /**
+         * 清空 {@link #acceptorQueue} 和 {@link #reprocessQueue} 两个队列
+         *
+         * @throws InterruptedException
+         */
         private void drainInputQueues() throws InterruptedException {
             do {
                 drainReprocessQueue();
@@ -235,12 +261,22 @@ class AcceptorExecutor<ID, T> {
             } while (!reprocessQueue.isEmpty() || !acceptorQueue.isEmpty() || pendingTasks.isEmpty());
         }
 
+        /**
+         * 遍历 {@link #acceptorQueue} 队列中全部task遍历取出放入到 {@link #processingOrder}
+         */
         private void drainAcceptorQueue() {
             while (!acceptorQueue.isEmpty()) {
                 appendTaskHolder(acceptorQueue.poll());
             }
         }
 
+
+        /**
+         * 将重试队列reprocessQueue的task放入到processingOrder队首
+         * 直到reprocessQueue队列清空，或者processingOrder队列溢出。
+         * 如果processingOrder溢出，则清空reprocessQueue
+         *
+         */
         private void drainReprocessQueue() {
             long now = System.currentTimeMillis();
             while (!reprocessQueue.isEmpty() && !isFull()) {
@@ -261,11 +297,19 @@ class AcceptorExecutor<ID, T> {
             }
         }
 
+        /**
+         * 将一个task 添加到 {@link #processingOrder} 队尾
+         *
+         * 如果 processingOrder 超出max数量，就将processingOrder的队首丢掉
+         *
+         */
         private void appendTaskHolder(TaskHolder<ID, T> taskHolder) {
+            // 如果队列已满，则溢出数量+1
             if (isFull()) {
                 pendingTasks.remove(processingOrder.poll());
                 queueOverflows++;
             }
+            // 如果是新任务，则加入到队列中，否则覆盖数量+1
             TaskHolder<ID, T> previousTask = pendingTasks.put(taskHolder.getId(), taskHolder);
             if (previousTask == null) {
                 processingOrder.add(taskHolder.getId());
@@ -274,6 +318,11 @@ class AcceptorExecutor<ID, T> {
             }
         }
 
+        /**
+         * 从 {@link #processingOrder} 队首取出一个没有过期的 task 放入到 {@link #singleItemWorkQueue} 队列中
+         * 使用 {@link #singleItemWorkRequests} 进行线程并发控制
+         *
+         */
         void assignSingleItemWork() {
             if (!processingOrder.isEmpty()) {
                 if (singleItemWorkRequests.tryAcquire(1)) {
@@ -292,6 +341,12 @@ class AcceptorExecutor<ID, T> {
             }
         }
 
+        /**
+         * 从 {@link #processingOrder} 队首批量取出没有过期的 task 放入到 {@link #batchWorkQueue} 队列中
+         * 直到 processingOrder 中没有task或者 取出数量达到 batchWorkQueue一次任务的最大task数量。
+         * 使用 {@link #batchWorkRequests} 进行线程并发控制
+         *
+         */
         void assignBatchWork() {
             if (hasEnoughTasksForNextBatch()) {
                 if (batchWorkRequests.tryAcquire(1)) {
@@ -317,6 +372,10 @@ class AcceptorExecutor<ID, T> {
             }
         }
 
+        /**
+         * 判断批量处理task是否足够
+         * 或者是否已经到批量处理的最长提交事件（通过最先放入{@link processingOrder}）
+         */
         private boolean hasEnoughTasksForNextBatch() {
             if (processingOrder.isEmpty()) {
                 return false;

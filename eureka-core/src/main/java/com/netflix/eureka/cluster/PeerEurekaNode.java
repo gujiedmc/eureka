@@ -33,8 +33,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * EurekaServer节点代理，代理了远程server节点对实例的管理功能。
+ * EurekaServer节点代理，代理了远程server节点对实例的管理功能，每个Node都是一个EurekaServer。
  * 可以将当前节点上实例的变更通过该代理同步到远程server节点。
+ *
+ * 操作同步是通过 {@link #batchingDispatcher} 和 {@link #nonBatchingDispatcher} 异步队列
  *
  * The <code>PeerEurekaNode</code> represents a peer node to which information
  * should be shared from this node.
@@ -83,6 +85,7 @@ public class PeerEurekaNode {
     private final String targetHost;
     private final HttpReplicationClient replicationClient;
 
+    // 异步处理队列
     private final TaskDispatcher<String, ReplicationTask> batchingDispatcher;
     private final TaskDispatcher<String, ReplicationTask> nonBatchingDispatcher;
 
@@ -150,6 +153,7 @@ public class PeerEurekaNode {
     }
 
     /**
+     * 同步实例取消注册
      * Send the cancellation information of an instance to the node represented
      * by this class.
      *
@@ -182,6 +186,8 @@ public class PeerEurekaNode {
     }
 
     /**
+     * 同步实例心跳操作
+     *
      * Send the heartbeat information of an instance to the node represented by
      * this class. If the instance does not exist the node, the instance
      * registration information is sent again to the peer node.
@@ -233,6 +239,8 @@ public class PeerEurekaNode {
     }
 
     /**
+     * 同步实例状态更新操作
+     *
      * Send the status information of of the ASG represented by the instance.
      *
      * <p>
@@ -259,6 +267,8 @@ public class PeerEurekaNode {
     }
 
     /**
+     *
+     * 同步实例状态更新操作
      *
      * Send the status update of the instance.
      *

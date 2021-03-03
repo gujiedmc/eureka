@@ -1,6 +1,7 @@
 package com.netflix.eureka.util.batcher;
 
 /**
+ * 集群同步task分发器。
  * See {@link TaskDispatcher} for an overview.
  *
  * @author Tomasz Bak

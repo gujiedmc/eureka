@@ -70,7 +70,7 @@ import static com.netflix.eureka.util.EurekaMonitors.*;
  * 5. 故障实例摘除 {@link #evict(long)}
  * 6. 清空注册表 {@link #clearRegistry()}
  * 7. 查询应用实例，包括全量查询、增量查询、单独查询等等。 {@link #getApplication*}
- * 8. 自我保护机制
+ * 8. 自我故障保护机制 {@link #numberOfRenewsPerMinThreshold}  {@link #updateRenewsPerMinThreshold()}
  *
  * 后台定时任务
  * 1. {@link #evictionTaskRef}
@@ -114,12 +114,16 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
 
     private Timer deltaRetentionTimer = new Timer("Eureka-DeltaRetentionTimer", true);
     private Timer evictionTimer = new Timer("Eureka-EvictionTimer", true);
+
+    // 用来存储每分钟心跳续约次数的工具，每分钟重置一次
     private final MeasuredRate renewsLastMin;
 
     private final AtomicReference<EvictionTask> evictionTaskRef = new AtomicReference<EvictionTask>();
 
     protected String[] allKnownRemoteRegions = EMPTY_STR_ARRAY;
+    // server端每分钟预计最少需要受到的心跳数量，用来判断自我故障保护
     protected volatile int numberOfRenewsPerMinThreshold;
+    // server端应该接受到心跳的客户端的数量
     protected volatile int expectedNumberOfClientsSendingRenews;
 
     protected final EurekaServerConfig serverConfig;
@@ -155,7 +159,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         }
     }
 
-    protected void initRemoteRegionRegistry() throws MalformedURLException {
+    protected void  initRemoteRegionRegistry() throws MalformedURLException {
         Map<String, String> remoteRegionUrlsWithName = serverConfig.getRemoteRegionUrlsWithName();
         if (!remoteRegionUrlsWithName.isEmpty()) {
             allKnownRemoteRegions = new String[remoteRegionUrlsWithName.size()];
@@ -245,7 +249,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                     registrant = existingLease.getHolder();
                 }
             } else {
-                // 实例第一次注册时，需要增加服务数量
+                // 计算心跳服务实例数量以及刷新自我故障保护计数更新
                 // The lease does not exist and hence it is a new registration
                 synchronized (lock) {
                     if (this.expectedNumberOfClientsSendingRenews > 0) {
@@ -646,6 +650,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     public void evict(long additionalLeaseMs) {
         logger.debug("Running the evict task");
 
+        // 如果进入自我保护机制，则不再执行
         if (!isLeaseExpirationEnabled()) {
             logger.debug("DS: lease expiration is currently disabled.");
             return;
@@ -1252,6 +1257,12 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         responseCache.invalidate(appName, vipAddress, secureVipAddress);
     }
 
+    /**
+     * 刷新server端每分钟预计最少需要受到的心跳数量，用来判断自我故障保护
+     * 服务启动、实例注册、实例取消注册、实例故障摘除、后台定时重新计算任务都会更新这个计数
+     * 计数 = 实例数量 * (60/心跳间隔秒数) * 配置比例（默认0.85）
+     * 这个地方老版本是写死的，并没有通过心跳间隔秒数计算的，而是使用默认的30s计算，直接给的2
+     */
     protected void updateRenewsPerMinThreshold() {
         this.numberOfRenewsPerMinThreshold = (int) (this.expectedNumberOfClientsSendingRenews
                 * (60.0 / serverConfig.getExpectedClientRenewalIntervalSeconds())

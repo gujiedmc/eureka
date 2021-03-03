@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * 集群生命周期管理器
  * Helper class to manage lifecycle of a collection of {@link PeerEurekaNode}s.
  *
  * @author Tomasz Bak
@@ -145,6 +146,7 @@ public class PeerEurekaNodes {
     }
 
     /**
+     * 销毁旧的PeerEurekaNode，根据参数url创建新的PeerEurekaNode
      * Given new set of replica URLs, destroy {@link PeerEurekaNode}s no longer available, and
      * create new ones.
      *

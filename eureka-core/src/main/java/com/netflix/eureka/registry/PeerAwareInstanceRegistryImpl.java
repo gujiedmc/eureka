@@ -66,6 +66,8 @@ import static com.netflix.eureka.Names.METRIC_REGISTRY_PREFIX;
  * 支持EurekaServer集群的 注册表 实现类。
  * 用来维护注册的服务实例的生命周期以及查找服务实例。
  *
+ * 操作同步并不是直接请求其它到server中，而是通过异步队列执行的
+ *
  * Handles replication of all operations to {@link AbstractInstanceRegistry} to peer
  * <em>Eureka</em> nodes to keep them all in sync.
  *
@@ -150,12 +152,21 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
         return this.instanceStatusOverrideRule;
     }
 
+    /**
+     * 初始化集群注册表
+     *
+     * @param peerEurekaNodes
+     * @throws Exception
+     */
     @Override
     public void init(PeerEurekaNodes peerEurekaNodes) throws Exception {
         this.numberOfReplicationsLastMin.start();
         this.peerEurekaNodes = peerEurekaNodes;
+        // 初始化缓存
         initializedResponseCache();
+        // 启动刷寻自我故障保护计数的定时task
         scheduleRenewalThresholdUpdateTask();
+        // 初始化其它区域server注册表
         initRemoteRegionRegistry();
 
         try {
@@ -187,6 +198,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     }
 
     /**
+     *
      * Schedule the task that updates <em>renewal threshold</em> periodically.
      * The renewal threshold would be used to determine if the renewals drop
      * dramatically because of network partition and to protect expiring too
@@ -204,6 +216,8 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     }
 
     /**
+     * 从相邻的Server节点拉取注册表信息，将可以注册到本地的实例进行注册。
+     *
      * Populates the registry information from a peer eureka node. This
      * operation fails over to other nodes until the list is exhausted if the
      * communication fails.
@@ -244,9 +258,11 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      */
     @Override
     public void openForTraffic(ApplicationInfoManager applicationInfoManager, int count) {
+        // 重新计算心跳服务实例数量以及刷新自我故障保护计数更新
         // Renewals happen every 30 seconds and for a minute it should be a factor of 2.
         this.expectedNumberOfClientsSendingRenews = count;
         updateRenewsPerMinThreshold();
+
         logger.info("Got {} instances from neighboring DS node", count);
         logger.info("Renew threshold is: {}", numberOfRenewsPerMinThreshold);
         this.startupTime = System.currentTimeMillis();
@@ -484,6 +500,12 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
         }
     }
 
+    /**
+     * 根据是否进入自我保护机制返回是否可以执行实例取消操作
+     * 实例故障摘除时会进行查询
+     *
+     * @return true 没有进入自我保护，可以执行取消操作 false 已经进入自我保护机制，不能执行取消操作
+     */
     @Override
     public boolean isLeaseExpirationEnabled() {
         if (!isSelfPreservationModeEnabled()) {
@@ -531,6 +553,8 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     }
 
     /**
+     * 重新计算心跳服务实例数量以及刷新自我故障保护计数更新
+     *
      * Updates the <em>renewal threshold</em> based on the current number of
      * renewals. The threshold is a percentage as specified in
      * {@link EurekaServerConfig#getRenewalPercentThreshold()} of renewals
@@ -547,6 +571,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
                     }
                 }
             }
+
             synchronized (lock) {
                 // Update threshold only if the threshold is greater than the
                 // current expected threshold or if self preservation is disabled.
@@ -630,6 +655,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
     /**
      * 将实例变更信息同步到其它Eureka Server节点
+     * 实例 注册、心跳、取消、状态更新、删除overrideStatus是都会执行同步
      *
      * Replicates all eureka actions to peer eureka nodes except for replication
      * traffic to this node.
@@ -664,6 +690,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
     /**
      * 执行rest请求，将实例变更信息同步到其它server节点。
+     *
      * Replicates all instance changes to peer eureka nodes except for
      * replication traffic to this node.
      *
