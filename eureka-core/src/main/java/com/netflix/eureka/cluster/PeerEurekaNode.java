@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * EurekaServer节点代理，代理了远程server节点对实例的管理功能，每个Node都是一个EurekaServer。
  * 可以将当前节点上实例的变更通过该代理同步到远程server节点。
  *
- * 操作同步是通过 {@link #batchingDispatcher} 和 {@link #nonBatchingDispatcher} 异步队列
+ * 操作同步并不是同步进行http请求，而是通过 {@link #batchingDispatcher} 和 {@link #nonBatchingDispatcher} 异步队列
  *
  * The <code>PeerEurekaNode</code> represents a peer node to which information
  * should be shared from this node.
@@ -186,7 +186,8 @@ public class PeerEurekaNode {
     }
 
     /**
-     * 同步实例心跳操作
+     * 同步实例心跳操作。
+     * 如果心跳失败，状态码为404时，重新注册实例
      *
      * Send the heartbeat information of an instance to the node represented by
      * this class. If the instance does not exist the node, the instance

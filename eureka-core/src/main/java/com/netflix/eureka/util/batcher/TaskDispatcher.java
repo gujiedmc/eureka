@@ -1,6 +1,9 @@
 package com.netflix.eureka.util.batcher;
 
 /**
+ * 集群同步task分发器
+ * 分发器从客户端接口task，并将task交给指定数量的worker消费。
+ *
  * Task dispatcher takes task from clients, and delegates their execution to a configurable number of workers.
  * The task can be processed one at a time or in batches. Only non-expired tasks are executed, and if a newer
  * task with the same id is scheduled for execution, the old one is deleted. Lazy dispatch of work (only on demand)

@@ -147,6 +147,7 @@ public class PeerEurekaNodes {
 
     /**
      * 销毁旧的PeerEurekaNode，根据参数url创建新的PeerEurekaNode
+     *
      * Given new set of replica URLs, destroy {@link PeerEurekaNode}s no longer available, and
      * create new ones.
      *

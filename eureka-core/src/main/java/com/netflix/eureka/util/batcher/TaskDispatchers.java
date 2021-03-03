@@ -1,7 +1,9 @@
 package com.netflix.eureka.util.batcher;
 
 /**
- * 集群同步task分发器。
+ * 用来创建集群同步task分发器 {@link TaskDispatcher}。
+ * 这代码写的有点垃圾，用匿名内部类实现的功能。
+ *
  * See {@link TaskDispatcher} for an overview.
  *
  * @author Tomasz Bak
