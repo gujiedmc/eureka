@@ -21,7 +21,8 @@ import org.slf4j.LoggerFactory;
 import static com.netflix.eureka.Names.METRIC_REPLICATION_PREFIX;
 
 /**
- * 异步task处理器。内部维护了一个队列 {@link AcceptorExecutor#acceptorQueue} 和 工作线程组 {@link #workerThreads}。
+ * 异步task处理器。
+ * 内部维护了一个队列 {@link AcceptorExecutor#acceptorQueue} 和 工作线程组 {@link #workerThreads}。
  *
  *
  * {@link TaskExecutors} instance holds a number of worker threads that cooperate with {@link AcceptorExecutor}.

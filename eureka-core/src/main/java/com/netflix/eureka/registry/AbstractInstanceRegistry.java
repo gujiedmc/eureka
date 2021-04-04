@@ -211,6 +211,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     }
 
     /**
+     * 注册
      *
      * Registers a new instance with a given duration.
      *
@@ -223,7 +224,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             // 查询当前服务注册数据
             Map<String, Lease<InstanceInfo>> gMap = registry.get(registrant.getAppName());
             REGISTER.increment(isReplication);
-            // 如果当前服务是首次注册则初始化当前服务注册信息
+            // 如果当前注册的instance在注册表中尚未初始化则进行初始化
             if (gMap == null) {
                 final ConcurrentHashMap<String, Lease<InstanceInfo>> gNewMap = new ConcurrentHashMap<String, Lease<InstanceInfo>>();
                 gMap = registry.putIfAbsent(registrant.getAppName(), gNewMap);

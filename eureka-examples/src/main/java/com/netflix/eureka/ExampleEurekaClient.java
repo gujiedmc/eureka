@@ -33,6 +33,8 @@ import com.netflix.discovery.DefaultEurekaClientConfig;
 import com.netflix.discovery.DiscoveryClient;
 import com.netflix.discovery.EurekaClient;
 import com.netflix.discovery.EurekaClientConfig;
+import com.netflix.discovery.shared.Application;
+import com.netflix.discovery.shared.Applications;
 
 /**
  * Eureka Client 使用示例。
@@ -131,9 +133,9 @@ public class ExampleEurekaClient {
         eurekaClient.shutdown();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
-        // 1. 从 eureka-config.properties 位置加载 EurekaClient配置，可以从 EurekaInstanceConfig 获取配置值
+        // 1. 从 eureka-client.properties 位置加载 EurekaClient配置，可以从 EurekaInstanceConfig 获取配置值
         EurekaInstanceConfig instanceConfig = new MyDataCenterInstanceConfig();
         // 2. 创建 服务实例信息
         InstanceInfo instanceInfo = new EurekaConfigBasedInstanceInfoProvider(instanceConfig).get();
@@ -142,11 +144,16 @@ public class ExampleEurekaClient {
         // 4. 从 eureka-client.properties 位置加载 Client信息
         DefaultEurekaClientConfig eurekaClientConfig = new DefaultEurekaClientConfig();
         // 5. 通过 实例信息 和 Client信息 创建 EurekaClient
-        EurekaClient client = new DiscoveryClient(applicationInfoManager, eurekaClientConfig);
-        // 注册 com.netflix.discovery.DiscoveryClient.register
-        // 心跳
+        DiscoveryClient client = new DiscoveryClient(applicationInfoManager, eurekaClientConfig);
+        // 注册 {@link com.netflix.discovery.DiscoveryClient#register}
+        // 心跳 {@link com.netflix.discovery.DiscoveryClient#renew}
         // 执行请求
+        Applications applications = client.getApplications();
+        for (Application application : applications.getRegisteredApplications()) {
+            System.out.println("registered application：" + application.getName() + ", instance size: " + application.getInstances().size());
+        }
         // 取消注册
+        Thread.sleep(60*1000L);
         client.shutdown();
     }
 

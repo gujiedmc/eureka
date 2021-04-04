@@ -17,6 +17,8 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * 向server同步实例信息的task。在{@link #start(int)}方法中调用 {@link #run()}方法开始异步执行，默认延迟40秒钟。
  *
+ * 每次执行结束之后会再创建一个新的task，延迟执行，默认30秒钟间隔。
+ *
  * A task for updating and replicating the local instanceinfo to the remote server. Properties of this task are:
  * - configured with a single update thread to guarantee sequential update to the remote server
  * - update tasks can be scheduled on-demand via onDemandUpdate()

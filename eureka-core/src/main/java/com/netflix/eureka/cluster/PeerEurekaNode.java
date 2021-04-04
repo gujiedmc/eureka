@@ -85,8 +85,10 @@ public class PeerEurekaNode {
     private final String targetHost;
     private final HttpReplicationClient replicationClient;
 
-    // 异步处理队列
+    // task分发器
+    // 可以批量执行的task
     private final TaskDispatcher<String, ReplicationTask> batchingDispatcher;
+    // 不可以批量执行的task
     private final TaskDispatcher<String, ReplicationTask> nonBatchingDispatcher;
 
     public PeerEurekaNode(PeerAwareInstanceRegistry registry, String targetHost, String serviceUrl, HttpReplicationClient replicationClient, EurekaServerConfig config) {

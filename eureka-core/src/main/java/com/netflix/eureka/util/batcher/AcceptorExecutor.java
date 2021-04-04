@@ -31,16 +31,26 @@ import static com.netflix.eureka.Names.METRIC_REPLICATION_PREFIX;
  *
  * task队列执行器。分为三层队列。
  *
+ * 第一层：接受队列 {@link AcceptorExecutor#acceptorQueue} 和待重试队列 {@link AcceptorExecutor#reprocessQueue}
+ *
+ * 第二层：待处理队列 {@link AcceptorExecutor#processingOrder}
+ *
+ * 第三层：单条执行队列 {@link AcceptorExecutor#singleItemWorkQueue} 和批量执行队列 {@link AcceptorExecutor#batchWorkQueue}
+ *
+ *
  * 1. 首先通过 {@link #process}方法将task存入到 {@link #acceptorQueue}中
  *
- * 2. 然后通过{@link AcceptorRunner#drainAcceptorQueue()} 方法一次性将 {@link #acceptorQueue} 队列中全部task遍历取出放入到 {@link #processingOrder} **队尾**
- * 或者通过{@link AcceptorRunner#drainReprocessQueue()} 方法一次性将 {@link #reprocessQueue} 队列中全部重试task遍历取出放入到 {@link #processingOrder} **队首**
+ * 2. AcceptorExecutor在创建的时候创建了一个线程{@link #acceptorThread}，执行Runner为{@link AcceptorRunner}，启动后开始while true循环直至停机。
  *
- * 3. 通过 {@link AcceptorRunner#assignSingleItemWork()} 从 {@link #processingOrder} 队列中取出一个task 放入到 {@link #singleItemWorkQueue} 队列中
- * 或者通过{@link AcceptorRunner#assignBatchWork()} 从 {@link #processingOrder} 队列中批量取出task 放入到 {@link #batchWorkQueue}队列中
+ * 循环中执行逻辑
  *
- * 4. 最后可以通过 {@link #requestWorkItem()} 获取 {@link #singleItemWorkQueue} 获取单条task执行
- * 或者通过{@link #requestWorkItems()} 获取 {@link #batchWorkQueue} 获取批量task执行
+ * 2.1. 通过{@link AcceptorRunner#drainReprocessQueue()} 方法一次性将 {@link #reprocessQueue} 队列中全部重试task遍历取出放入到 {@link #processingOrder} **队首**
+ * 2.2. 通过{@link AcceptorRunner#drainAcceptorQueue()} 方法一次性将 {@link #acceptorQueue} 队列中全部task遍历取出放入到 {@link #processingOrder} **队尾**
+ * 2.3. 通过{@link AcceptorRunner#assignBatchWork()} 从 {@link #processingOrder} 队列中批量取出task 放入到 {@link #batchWorkQueue}队列中
+ * 2.4. 通过 {@link AcceptorRunner#assignSingleItemWork()} 从 {@link #processingOrder} 队列中取出一个task 放入到 {@link #singleItemWorkQueue}队列中
+ *
+ * 3. 最后外界可以通过 {@link #requestWorkItem()} 从 {@link #singleItemWorkQueue} 获取单条task执行
+ * 或者通过{@link #requestWorkItems()} 从 {@link #batchWorkQueue} 获取批量task执行
  *
  * An active object with an internal thread accepting tasks from clients, and dispatching them to
  * workers in a pull based manner. Workers explicitly request an item or a batch of items whenever they are

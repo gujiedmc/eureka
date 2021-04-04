@@ -119,6 +119,8 @@ public class ApplicationResource {
     }
 
     /**
+     * 查询实例信息
+     *
      * Gets information about a particular instance of an application.
      *
      * @param id

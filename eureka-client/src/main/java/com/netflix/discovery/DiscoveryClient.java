@@ -190,6 +190,7 @@ public class DiscoveryClient implements EurekaClient {
     private String appPathIdentifier;
     private ApplicationInfoManager.StatusChangeListener statusChangeListener;
 
+    // 后台注册实例的task
     private InstanceInfoReplicator instanceInfoReplicator;
 
     private volatile int registrySize = 0;
